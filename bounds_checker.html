@@ -8,8 +8,8 @@
     crossorigin=""/>
 <style>
   #map {
-    height: 100vh;
-    width: 100vw
+    height: 98vh;
+    width: 98vw
   }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -18,9 +18,15 @@
     crossorigin=""></script>
 <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+
 <body>
- <div id="map"></div>
+  <div style="position: absolute; z-index: 1000; background: white; padding: 10px 10px 10px 80px;">
+    <input type="text" id="addressInput" placeholder="Enter address..." size="40">
+    <button onclick="handleAddressSearch(document.getElementById('addressInput').value)">Find</button>
+  </div>
+  <div id="map"></div>
 </body>
+
 <script>
   //CORS, is that like an apple thing?
   const DAVIS_SHAPE_FILE_URL = `https://raw.githubusercontent.com/code-11/dsnc-bounds/br/mvp/Neighborhoods.zip`;
@@ -34,6 +40,7 @@
     maxZoom: 19,
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
   }).addTo(map);
+  let davisBufferedFeature;
 
   async function loadFromZip(url) {
     try {
@@ -67,10 +74,10 @@
       }).addTo(map);
 
       // Use Turf to figure out the buffer, since I don't want to scar anyone with my custom spherical geometry
-      const buffered = turf.buffer(feature, DSNC_BUFFER_MILES, { units: 'miles', steps: 128 });
-      console.log("Drawing Buffer of size: "+buffered.geometry.coordinates[0].length);
+      davisBufferedFeature = turf.buffer(feature, DSNC_BUFFER_MILES, { units: 'miles', steps: 128 });
+      console.log("Drawing Buffer of size: "+davisBufferedFeature.geometry.coordinates[0].length);
 
-      L.geoJSON(buffered, {
+      L.geoJSON(davisBufferedFeature, {
         style: { color: 'red', fillOpacity: 0.1 }
       }).addTo(map);
 
@@ -79,11 +86,48 @@
     }
   }
 
+  async function geocode(address) {
+    const encoded = encodeURIComponent(address);
+    const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1`;
+
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    const results = await response.json();
+    if (results.length === 0) throw new Error("No results found");
+
+    return results[0];
+  }
+
   async function main() {
     const feature = await loadFromZip(DAVIS_SHAPE_FILE_URL);
     drawPolys(feature);
   }
 
   main();
+
+  async function handleAddressSearch(address) {
+    try {
+      console.log("Finding coords for: "+address)
+      const { lat, lon } = await geocode(address);
+      console.log("Coords found: "+[lat, lon]);
+
+      const point = turf.point([lon, lat]);
+      const isInside = turf.booleanPointInPolygon(point, davisBufferedFeature);
+
+      const popupText=isInside
+        ? `✅ ${address} is inside the DSNC boundary!`
+        : `❌ ${address} is outside the DSNC boundary`
+
+      L.marker([lat, lon]).addTo(map).bindPopup(popupText).openPopup();
+
+    } catch (e) {
+      alert("Error geocoding address: " + e.message);
+    }
+  }
+
 </script>
 </html>
