@@ -17,29 +17,73 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""></script>
 <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
 <body>
  <div id="map"></div>
 </body>
 <script>
-  var DAVIS_SHAPE_FILE_URL = `https://drive.google.com/uc?export=download&id=1wgDC9_-hjiovZsdhNM4XkaYdwkEVNufj`;
-  var DAVIS_LOC ={lat:42.396333, lon:-71.122484};
-  var map = L.map('map').setView([DAVIS_LOC.lat, DAVIS_LOC.lon], 16);
-  var tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  //CORS, is that like an apple thing?
+  const DAVIS_SHAPE_FILE_URL = `https://raw.githubusercontent.com/code-11/dsnc-bounds/br/mvp/Neighborhoods.zip`;
+  const DAVIS_LOC ={lat:42.398, lon:-71.122484};
+  const DAVIS_INDEX=15;
+  const DSNC_BUFFER_MILES=.5;
+  const DEFAULT_ZOOM=15
+
+  const map = L.map('map').setView([DAVIS_LOC.lat, DAVIS_LOC.lon], DEFAULT_ZOOM);
+  const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
   }).addTo(map);
 
-  fetch(DAVIS_SHAPE_FILE_URL)
-    .then(response => response.blob())
-    .then(blob => {
-      // Do something with the blob — like read or unzip
+  async function loadFromZip(url) {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
       console.log("Downloaded ZIP blob", blob);
 
-      // To unzip, pass it to a library like JSZip
-      return blob.arrayBuffer();
-    });
+      const arrayBuffer = await blob.arrayBuffer();
+      const geojson = await shp(arrayBuffer); // `shp` comes from shpjs
+      const feature = geojson.features[DAVIS_INDEX];
+      console.log("Succesfully got Davis GeoJSON Feature:", feature);
 
+      return feature;
+    } catch (err) {
+      console.error("Error loading shapefile:", err);
+    }
+  }
 
+  async function drawPolys(feature) {
+    try {
+      const coords = feature.geometry.coordinates[0]; // There's only one ring
+      const latlngs = coords.map(([lng, lat]) => [lat, lng]);
+
+      console.log("Drawing Davis poly of len: " + latlngs.length);
+
+      const davisBounds = L.polygon(latlngs, {
+        color: 'blue',
+        fillColor: '#3388ff',
+        fillOpacity: 0.2,
+        weight: 1
+      }).addTo(map);
+
+      // Use Turf to figure out the buffer, since I don't want to scar anyone with my custom spherical geometry
+      const buffered = turf.buffer(feature, DSNC_BUFFER_MILES, { units: 'miles', steps: 128 });
+      console.log("Drawing Buffer of size: "+buffered.geometry.coordinates[0].length);
+
+      L.geoJSON(buffered, {
+        style: { color: 'red', fillOpacity: 0.1 }
+      }).addTo(map);
+
+    } catch (err) {
+      console.log("Error displaying polys:", err);
+    }
+  }
+
+  async function main() {
+    const feature = await loadFromZip(DAVIS_SHAPE_FILE_URL);
+    drawPolys(feature);
+  }
+
+  main();
 </script>
 </html>
