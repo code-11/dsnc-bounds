@@ -7,9 +7,25 @@
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
     crossorigin=""/>
 <style>
+body {
+    margin: 0;
+    padding: 0;
+  }
+
   #map {
-    height: 98vh;
-    width: 98vw
+    height: 100vh;
+    width: 100vw
+  }
+
+  form {
+    position: absolute;
+    z-index: 1000;
+    background: white;
+    padding: 10px 10px 10px 80px;
+  }
+
+  input {
+    width: 200px;
   }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -20,10 +36,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
 
 <body>
-  <div style="position: absolute; z-index: 1000; background: white; padding: 10px 10px 10px 80px;">
-    <input type="text" id="addressInput" placeholder="Enter address..." size="40">
-    <button onclick="handleAddressSearch(document.getElementById('addressInput').value)">Find</button>
-  </div>
+  <form id="searchForm">
+    <input type="search" id="addressInput" placeholder="Enter address...">
+    <button id="searchButton">Find</button>
+  </form>
   <div id="map"></div>
 </body>
 
@@ -109,16 +125,24 @@
 
   main();
 
+
+  searchForm.addEventListener('submit', (event) => {
+    event.preventDefault()
+    handleAddressSearch(addressInput.value)
+  })
+
   async function handleAddressSearch(address) {
     try {
-      console.log("Finding coords for: "+address)
+searchButton.disabled = true
+      searchButton.innerText = "loading..."
+      console.log("Finding coords for: " + address)
       const { lat, lon } = await geocode(address);
-      console.log("Coords found: "+[lat, lon]);
+      console.log("Coords found: " + [lat, lon]);
 
       const point = turf.point([lon, lat]);
       const isInside = turf.booleanPointInPolygon(point, davisBufferedFeature);
 
-      const popupText=isInside
+      const popupText = isInside
         ? `✅ ${address} is inside the DSNC boundary!`
         : `❌ ${address} is outside the DSNC boundary`
 
@@ -126,6 +150,9 @@
 
     } catch (e) {
       alert("Error geocoding address: " + e.message);
+} finally {
+      searchButton.disabled = false
+      searchButton.innerText = "Find"
     }
   }
 
