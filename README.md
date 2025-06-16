@@ -22,3 +22,8 @@ Most importantly, there is no server. Works entirely on the front end via CDNs a
    - It is geocoded via Nominatim
    - A point is constructed and checked for intersection with the Davis polygon
    - The result is displayed to the user
+
+## Screenshots
+![In buffer but not Davis](https://github.com/code-11/dsnc-bounds/blob/main/inBufferNotDavis.png)
+![In Davis](https://github.com/code-11/dsnc-bounds/blob/main/inDavis.png)
+![Outside of both buffer and Davis](https://github.com/code-11/dsnc-bounds/blob/main/outside.png)
