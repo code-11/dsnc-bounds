@@ -49,7 +49,7 @@ body {
   const DAVIS_LOC ={lat:42.398, lon:-71.122484};
   const DAVIS_INDEX=15;
   const DSNC_BUFFER_MILES=.5;
-  const DEFAULT_ZOOM=15
+  const DEFAULT_ZOOM=14
 
   const map = L.map('map').setView([DAVIS_LOC.lat, DAVIS_LOC.lon], DEFAULT_ZOOM);
   const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
